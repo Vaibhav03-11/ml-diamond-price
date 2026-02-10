@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import pandas as pd
 import joblib
 import os
@@ -13,21 +14,15 @@ if not os.path.exists(MODEL_PATH):
 
 pipeline = joblib.load(MODEL_PATH)
 
-@app.route('/predict', methods=['POST'])
+@app.route("/predict", methods=["POST", "OPTIONS"])
 def predict():
+    if request.method == "OPTIONS":
+        return ("", 204)
     try:
-        # 1. Get JSON data
         data = request.get_json()
-        
-        # Validate input (basic check)
         if not data:
             return jsonify({"error": "No input data provided"}), 400
-            
-        # 2. Convert JSON to DataFrame
-        # We expect data to be a dict like: 
-        # {"carat": 1.52, "cut": "Premium", "color": "F", ...}
-        # If sending multiple records, data should be a list of dicts.
-        
+
         if isinstance(data, dict):
             df = pd.DataFrame([data])
         elif isinstance(data, list):
@@ -35,19 +30,10 @@ def predict():
         else:
             return jsonify({"error": "Input must be a JSON object or list of objects"}), 400
 
-        # 3. Predict
         prediction = pipeline.predict(df)
-        
-        # 4. Return JSON response
-        # Convert numpy array to list for JSON serialization
-        return jsonify({
-            "status": "success",
-            "prediction": prediction.tolist()
-        })
-
+        return jsonify({"status": "success", "prediction": prediction.tolist()})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
-
     app.run(host="0.0.0.0", port=5000, debug=True)
